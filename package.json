@@ -25,7 +25,9 @@
   },
   "homepage": "https://github.com/hasa0072/mad9124-w21-a2-mongo-crud#readme",
   "dependencies": {
+    "debug": "^4.3.1",
     "express": "^4.17.1",
-    "mongoose": "^5.11.19"
+    "mongoose": "^5.11.19",
+    "xss": "^1.0.8"
   }
 }

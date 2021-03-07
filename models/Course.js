@@ -6,7 +6,7 @@ const schema = new mongoose.Schema({
   title: String,
   description: String,
   url: String,
-  students: [Student],
+  students: [Number],
 })
 
 
