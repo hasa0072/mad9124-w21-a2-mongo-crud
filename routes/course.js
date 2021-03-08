@@ -1,5 +1,5 @@
 
-
+const debug = require('debug')('Router:Course:')
 const express = require('express')
 const Course = require('../models/Course')
 
@@ -21,12 +21,14 @@ function sendResourceNotFound(req, res) {
 
 // get all courses
 router.get('/', async (req, res) => {
+  debug("Received GET all")
   const courses = await Course.find()
   res.send({data: courses})
 })
 
 // get course with id
 router.get('/:id', async (req, res) => {
+  debug(`Received GET ${req.params.id}`)
   try {
     const course = await Course.findById(req.params.id)
     if (!course) {
@@ -41,11 +43,15 @@ router.get('/:id', async (req, res) => {
 
 // create a new course
 router.post('/', sanitizeBody, async (req, res) => {
+  debug("Received POST")
   try {
     const newCourse = new Course(req.sanitizedBody)
+    debug(`   ${newCourse}`)
     await newCourse.save()
     res.status(201).send({data: newCourse})
+    debug("   Data saved")
   } catch(err) {
+    debug("   Something is wrong in POST")
     res.status(503).send({
       errors: [
         {
@@ -62,7 +68,7 @@ router.post('/', sanitizeBody, async (req, res) => {
 // update specified course
 router.put('/:id', sanitizeBody, async (req, res) => {
   try {
-    const {_id, ...otherAttributes} = req.body
+    const {_id, ...otherAttributes} = req.sanitizedBody
     const course = await Course.findByIdAndUpdate(
       req.params.id,
       {_id: req.params.id, ...otherAttributes},
