@@ -1,61 +1,110 @@
 
 
 const express = require('express')
+const Course = require('../models/Course')
+
+const sanitizeBody = require('../middleware/sanitizeBody')
+
 const router = express.Router()
-const {validateCourseId,
-       validateCourseData} = require('../middleware/validateCourse')
 
-const sanitizeBody = require('./middleware/sanitizeBody')
-
-const {courses} = require('../data/courses')
-
-// use middleware for requests with course id
-router.use('/:courseId', validateCourseId, validateCourseData)
+function sendResourceNotFound(req, res) {
+  res.status(404).send({
+    errors: [
+      {
+        status: '404',
+        title: 'Resource does not exist',
+        description: `We could not find a course with id: ${req.params.id}`
+      }
+    ]
+  })
+}
 
 // get all courses
-router.get('/', (req, res) => res.send({data: courses}))
+router.get('/', async (req, res) => {
+  const courses = await Course.find()
+  res.send({data: courses})
+})
 
 // get course with id
-router.get('/:courseId', (req, res) => {
-  res.send({data: courses[req.courseIndex]})
+router.get('/:id', async (req, res) => {
+  try {
+    const course = await Course.findById(req.params.id)
+    if (!course) {
+      throw new Error('Resource not found')
+    }
+    res.send({data: course})
+  } catch (err) {
+    /* handle error */
+    sendResourceNotFound(req, res);
+  }
 })
 
 // create a new course
-router.post('/', (req, res) => {
-  const {code, title, description, url} = req.body
-  const newCourse = {
-    id: Date.now(),
-    code,
-    title,
-    description,
-    url
+router.post('/', sanitizeBody, async (req, res) => {
+  try {
+    const newCourse = new Course(req.sanitizedBody)
+    await newCourse.save()
+    res.status(201).send({data: newCourse})
+  } catch(err) {
+    res.status(503).send({
+      errors: [
+        {
+          status: '503',
+          title: 'Service Unavailable',
+          description: `The server cannot handle the request`
+        }
+      ]
+    })
   }
-  courses.push(newCourse)
-  res.status(201).send({data: newCourse})
 })
 
 
 // update specified course
-router.put('/:courseId', (req, res) => {
-  const id = parseInt(req.params.courseId)
-  const {code, title, description, url} = req.body
-  const updatedCourse = {id, code, title, description, url}
-  courses[req.courseIndex] = updatedCourse
-  res.send({data: updatedcourse})
+router.put('/:id', sanitizeBody, async (req, res) => {
+  try {
+    const {_id, ...otherAttributes} = req.body
+    const course = await Course.findByIdAndUpdate(
+      req.params.id,
+      {_id: req.params.id, ...otherAttributes},
+      {
+        new: true,
+        overwrite: true,
+        runValidators: true
+      }
+    )
+    if (!course) throw new Error('Resource not found')
+    res.send({data: course})
+  } catch (err) {
+    sendResourceNotFound(req, res)
+  }
 })
 
-router.patch('/:courseId', (req, res) => {
-  const {id, ...theRest} = req.body
-  const updatedCourse = Object.assign({}, courses[req.courseIndex], theRest)
-  courses[req.courseIndex] = updatedCourse
-  res.send({data: updatedCourse})
+router.patch('/:id', sanitizeBody, async (req, res) => {
+  try {
+    const {_id, ...otherAttributes} = req.body
+    const course = await Course.findByIdAndUpdate(
+      req.params.id,
+      {_id: req.params.id, ...otherAttributes},
+      {
+        new: true,
+        runValidators: true
+      }
+    )
+    if (!course) throw new Error('Resource not found')
+    res.send({data: course})
+  } catch (err) {
+    sendResourceNotFound(req, res)
+  }
 })
 
-router.delete('/:courseId', (req, res) => {
-  const id = parseInt(req.params.courseId)
-  // splice returns an array of the removed items
-  const deletedCourses = courses.splice(req.courseIndex, 1)
-  res.send({data: deletedCourses[0]})
+router.delete('/:id', async (req, res) => {
+  try {
+    const course = await Course.findByIdAndRemove(req.params.id)
+    if (!course) throw new Error('Resource not found')
+    res.send({data: course})
+  } catch (err) {
+    sendResourceNotFound(req, res)
+  }
 })
 
 module.exports = router

@@ -7,4 +7,5 @@ const schema = new mongoose.Schema({
   email: String,
 })
 
+module.exports = mongoose.model('Student', schema)
 

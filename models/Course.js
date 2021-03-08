@@ -1,5 +1,4 @@
 const mongoose = require('mongoose')
-const Student = require('./Student')
 
 const schema = new mongoose.Schema({
   code: String,
@@ -9,4 +8,5 @@ const schema = new mongoose.Schema({
   students: [Number],
 })
 
+module.exports = mongoose.model('Course', schema)
 
