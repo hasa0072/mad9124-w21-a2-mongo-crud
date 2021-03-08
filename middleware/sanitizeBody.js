@@ -1,25 +1,34 @@
-
 const xss = require('xss')
-const debug = require('debug')(':body')
+
+const sanitize = sourceString => {
+  return xss(sourceString, {
+    whiteList: [],
+    stripIgnoreTag: true,
+    stripIgnoreTagBody: ['script']
+  })
+}
 
 const stripTags = payload => {
-  let attributes = {...payload}
+  let attributes = { ...payload } // don't mutate the source data
   for (let key in attributes) {
-    attributes[key] = xss(attributes[key], {
-      whiteList: [],
-      stripIgnoreTag: true,
-      stripIgnoreTagBody: ['script']
-    })
+    if (attributes[key] instanceof Array) {
+      attributes[key] = attributes[key].map(element => {
+        return typeof element === 'string'
+          ? sanitize(element) // if true
+          : stripTags(element) // if false
+      })
+    } else if (attributes[key] instanceof Object) {
+      attributes[key] = stripTags(attributes[key])
+    } else {
+      attributes[key] = sanitize(attributes[key])
+    }
   }
   return attributes
 }
 
 module.exports = (req, res, next) => {
-  debug({body: req.body})
-  const {id, _id, ...attributes} = req.body
-  debug({attributes})
+  const { id, _id, ...attributes } = req.body
   const sanitizedBody = stripTags(attributes)
-  debug({sanitizedBody: sanitizedBody})
   req.sanitizedBody = sanitizedBody
   next()
 }
