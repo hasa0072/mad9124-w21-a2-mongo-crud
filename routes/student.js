@@ -7,17 +7,11 @@ const sanitizeBody = require('../middleware/sanitizeBody')
 
 const router = express.Router()
 
-function sendResourceNotFound(req, res) {
-  res.status(404).send({
-    errors: [
-      {
-        status: '404',
-        title: 'Resource does not exist',
-        description: `We could not find a student with id: ${req.params.id}`
-      }
-    ]
-  })
-}
+const {
+  sendResourceNotFound,
+  sendValidationFailed,
+  sendServiceUnavailable
+} = require('../errorResponse')
 
 // get all students
 router.get('/', async (req, res) => {
@@ -46,15 +40,12 @@ router.post('/', sanitizeBody, async (req, res) => {
     await newStudent.save()
     res.status(201).send({data: newStudent})
   } catch(err) {
-    res.status(503).send({
-      errors: [
-        {
-          status: '503',
-          title: 'Service Unavailable',
-          description: `The server cannot handle the request`
-        }
-      ]
-    })
+    // https://mongoosejs.com/docs/api/error.html#error_Error-ValidationError
+    if (err instanceof mongoose.Error.ValidationError) {
+      sendValidationFailed(req, res, err.message)
+    } else {
+      sendServiceUnavailable(req, res)
+    }
   }
 })
 
@@ -75,7 +66,11 @@ router.put('/:id', sanitizeBody, async (req, res) => {
     if (!student) throw new Error('Resource not found')
     res.send({data: student})
   } catch (err) {
-    sendResourceNotFound(req, res)
+    if (err instanceof mongoose.Error.ValidationError) {
+      sendValidationFailed(req, res, err.message)
+    } else {
+      sendServiceUnavailable(req, res)
+    }
   }
 })
 

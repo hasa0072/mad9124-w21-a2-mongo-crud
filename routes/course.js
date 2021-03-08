@@ -2,22 +2,16 @@
 const debug = require('debug')('Router:Course:')
 const express = require('express')
 const Course = require('../models/Course')
+const mongoose = require('mongoose')
 
 const sanitizeBody = require('../middleware/sanitizeBody')
-
 const router = express.Router()
 
-function sendResourceNotFound(req, res) {
-  res.status(404).send({
-    errors: [
-      {
-        status: '404',
-        title: 'Resource does not exist',
-        description: `We could not find a course with id: ${req.params.id}`
-      }
-    ]
-  })
-}
+const {
+  sendResourceNotFound,
+  sendValidationFailed,
+  sendServiceUnavailable
+} = require('../errorResponse')
 
 // get all courses
 router.get('/', async (req, res) => {
@@ -51,16 +45,13 @@ router.post('/', sanitizeBody, async (req, res) => {
     res.status(201).send({data: newCourse})
     debug("   Data saved")
   } catch(err) {
-    debug("   Something is wrong in POST")
-    res.status(503).send({
-      errors: [
-        {
-          status: '503',
-          title: 'Service Unavailable',
-          description: `The server cannot handle the request`
-        }
-      ]
-    })
+    // https://mongoosejs.com/docs/api/error.html#error_Error-ValidationError
+    if (err instanceof mongoose.Error.ValidationError) {
+      sendValidationFailed(req, res, err.message)
+    } else {
+      debug("   Something is wrong in POST")
+      sendServiceUnavailable(req, res)
+    }
   }
 })
 
@@ -81,7 +72,12 @@ router.put('/:id', sanitizeBody, async (req, res) => {
     if (!course) throw new Error('Resource not found')
     res.send({data: course})
   } catch (err) {
-    sendResourceNotFound(req, res)
+    if (err instanceof mongoose.Error.ValidationError) {
+      sendValidationFailed(req, res, err.message)
+    } else {
+      debug("   Something is wrong in PUT")
+      sendServiceUnavailable(req, res)
+    }
   }
 })
 
